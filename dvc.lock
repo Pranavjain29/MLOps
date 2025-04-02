@@ -28,3 +28,19 @@ stages:
       hash: md5
       md5: adf63b6ce20f7ee74f63d5dabb325226
       size: 10829967
+  transform:
+    cmd: python src/preprocessing.py data/california_housing.csv data/california_housing_scaled.csv
+    deps:
+    - path: data/california_housing.csv
+      hash: md5
+      md5: 99cd714680249ce6744897c57442646e
+      size: 1689348
+    - path: src/preprocessing.py
+      hash: md5
+      md5: c14d04e405bd8b03c1afbd1242b641fc
+      size: 906
+    outs:
+    - path: data/california_housing_scaled.csv
+      hash: md5
+      md5: 934c5892969cba95ce7389f6fd95681b
+      size: 3056314
