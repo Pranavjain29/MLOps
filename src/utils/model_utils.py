@@ -1,11 +1,10 @@
-# src/utils/model_utils.py
-
 import mlflow
 import mlflow.sklearn
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from mlflow.models.signature import infer_signature
 
 models = {
     "Linear Regression": {
@@ -56,15 +55,28 @@ def register_best_model(results, X_test, X_test_red, y_test):
     X_test_final = X_test_red if "reduced" in best["model_name"] else X_test
     y_pred = best_model.predict(X_test_final)
 
-    test_r2 = r2_score(y_test, y_pred)
-    test_mse = mean_squared_error(y_test, y_pred)
+    signature = infer_signature(X_test_final, y_pred)
+    input_example = X_test_final.iloc[:1]
 
     mlflow.set_experiment("Ca_Housing_Prediction")
     model_name = f"california_housing_{best['model_name']}"
-    model_uri = f"runs:/{best['run_id']}/model"
-    version = mlflow.register_model(model_uri, model_name)
+
+    mlflow.sklearn.log_model(
+        sk_model=best_model,
+        artifact_path="model",
+        signature=signature,
+        input_example=input_example,
+        registered_model_name=model_name
+    )
+
 
     client = mlflow.tracking.MlflowClient()
-    client.transition_model_version_stage(model_name, version.version, stage="Production")
+    latest_version = client.get_latest_versions(model_name, stages=["None"])[-1].version
+    client.transition_model_version_stage(model_name, latest_version, stage="Production", archive_existing_versions=True)
 
-    return {"model_name": model_name, "mlflow_uri": model_uri, "test_r2": test_r2, "test_mse": test_mse}
+    return {
+        "model_name": model_name,
+        "mlflow_uri": f"models:/{model_name}/Production",
+        "test_r2": r2_score(y_test, y_pred),
+        "test_mse": mean_squared_error(y_test, y_pred)
+    }
